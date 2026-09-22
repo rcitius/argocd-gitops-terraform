@@ -1,0 +1,27 @@
+---
+# Per-environment overrides for demo-app / dev.
+#
+# Layered ON TOP of base.yaml. Maps deep-merge, so naming a parent key here
+# does not wipe its siblings from base -- only the keys named are replaced.
+# Lists, by contrast, are replaced wholesale.
+
+global:
+  hostPrefix: "dev"
+  domainName: "example.com"
+
+  identity:
+    environment: "dev"
+    # Assigned by the identity provider, so they cannot be derived from
+    # anything else. Replace with your own.
+    userGroupId: "00000000-0000-0000-0000-000000000001"
+    spaClientId: "00000000-0000-0000-0000-000000000002"
+
+  # Canary: changing any value under global.dotnet.env alters the pod template
+  # of every .NET subchart, so Kubernetes rolls them. Inert -- unknown env vars
+  # are ignored. Bump it to force a rollout and prove the pipeline end to end.
+  dotnet:
+    env:
+      DEPLOY_CANARY: "1"
+
+optional-service:
+  enabled: false

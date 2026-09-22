@@ -1,0 +1,94 @@
+# =============================================================================
+# demo-app on cluster demo-dev.
+#
+# The cluster's bootstrap Application watches this directory with
+# recurse: true, so merging a file here applies it. Nothing else is needed --
+# no kubectl, no pipeline step.
+#
+# IMPORTANT: everything under this directory is applied as a Kubernetes
+# manifest. Values documents are NOT manifests, which is why they live one
+# level up under gitops/values/ and are reached through the $values ref below.
+# =============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: demo-app-dev
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+
+  # One element per environment. Adding an environment is an entry here, not a
+  # new file and not a new Application.
+  generators:
+    - list:
+        elements:
+          - env: dev
+            namespace: demo-dev
+            # Image tags are stamped INTO the chart artifact at package time,
+            # so the chart version alone pins the exact image set. There is
+            # nothing image-related to set in values.
+            chartVersion: "1.0.60"
+
+  template:
+    metadata:
+      name: 'demo-app-{{ .env }}'
+      finalizers:
+        # Without this, removing the element deletes the Application object but
+        # orphans every workload it deployed.
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+
+      sources:
+        - repoURL: myregistry.azurecr.io/helm
+          chart: demo-app
+          targetRevision: '{{ .chartVersion }}'
+          helm:
+            releaseName: demo-app
+            # Order matters: base first, environment second. Later files win,
+            # and maps merge key by key rather than replacing.
+            valueFiles:
+              - $values/gitops/values/base.yaml
+              - $values/gitops/values/{{ .env }}.yaml
+
+        # Contributes no manifests. Exists only so the repo is addressable as
+        # $values above.
+        - repoURL: git@github.com:example-org/gitops.git
+          targetRevision: main
+          ref: values
+
+      destination:
+        # Per-cluster ArgoCD: every Application lands on the cluster it runs on.
+        name: in-cluster
+        namespace: '{{ .namespace }}'
+
+      syncPolicy:
+        # Merge deploys. Without a webhook into a private cluster ArgoCD polls,
+        # default 180s -- the worst-case lag between a merged PR and rollout.
+        #
+        # selfHeal means a manual kubectl edit is reverted on the next
+        # reconcile, so the repo is the only way to change this namespace.
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          # The namespace is created by the infrastructure layer, not here.
+          - CreateNamespace=false
+        retry:
+          limit: 3
+          backoff:
+            duration: 20s
+            factor: 2
+            maxDuration: 5m
+
+      # The chart writes replicas into every Deployment and the HPA then scales
+      # away from it, which would leave the app permanently OutOfSync. This
+      # suppresses that in the UI only -- a sync still applies replicas.
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          jsonPointers:
+            - /spec/replicas
+
+      revisionHistoryLimit: 5

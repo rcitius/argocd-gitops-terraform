@@ -1,0 +1,5 @@
+apiVersion: v2
+name: argocd-bootstrap
+description: The single bootstrap Application that makes a directory in Git authoritative for this cluster
+type: application
+version: 1.0.0
