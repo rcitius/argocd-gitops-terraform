@@ -1,0 +1,39 @@
+---
+# Values common to every environment of demo-app.
+#
+# Lives outside the directory the bootstrap Application watches: that directory
+# is applied as manifests, and a values document is not one.
+#
+# No secrets. Every credential reaches the pods as a Kubernetes Secret produced
+# by External Secrets from the platform's secret store, referenced by key name.
+
+global:
+  identity:
+    # Replace with your identity provider's tenant / directory id.
+    tenantId: "00000000-0000-0000-0000-000000000000"
+    domain: "example.com"
+
+  telemetry:
+    otelEnabled: "true"
+
+  # Any key here becomes an environment variable on every subchart that
+  # declares `runtime: dotnet`. Subcharts that do not declare it are skipped,
+  # which is worth knowing: a service missing that key silently receives none
+  # of this shared configuration.
+  dotnet:
+    env:
+      Logging__LogLevel__Default: "Warning"
+      Logging__LogLevel__Microsoft: "Warning"
+
+api-gateway:
+  hpaCpuUtilizationPercentage: 300
+
+worker:
+  maxReplicas: 1
+  nodeSelector:
+    workload-type: "userpool1"
+  tolerations:
+    - key: workload
+      operator: Equal
+      value: "userpool1"
+      effect: NoSchedule

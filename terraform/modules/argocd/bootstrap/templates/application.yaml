@@ -1,0 +1,33 @@
+# The one object that has to exist before Git can drive anything. It watches a
+# single directory and keeps whatever ApplicationSets live there applied.
+# After this, adding an environment is a commit and nothing else.
+#
+# Deliberately a separate Helm release from argo-cd itself: Helm resolves every
+# manifest in a release against a discovery cache taken before that release
+# installs its CRDs, so an Application shipped inside the argo-cd release fails
+# with "no matches for kind Application" on a first install.
+#
+# The resources finalizer matters: without it, removing an ApplicationSet
+# element deletes the Application object but orphans the workloads it deployed.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoUrl | quote }}
+    targetRevision: {{ .Values.revision | quote }}
+    path: {{ .Values.path | quote }}
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

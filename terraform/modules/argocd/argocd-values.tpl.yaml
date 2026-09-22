@@ -1,0 +1,22 @@
+# Values for the argo-cd chart. Rendered by templatefile() from main.tf.
+#
+# Repository credentials are NOT set here on purpose -- they are separate
+# Kubernetes Secrets so they never enter the Helm release values.
+
+crds:
+  install: true
+  # Keep the CRDs if the release is removed: deleting them would delete every
+  # Application and ApplicationSet on the cluster as a side effect.
+  keep: true
+
+configs:
+  params:
+    # TLS is terminated at the ingress (traefik), so the server speaks plain
+    # HTTP internally. Note this makes the CLI need --plaintext, not --insecure.
+    server.insecure: ${server_insecure}
+
+dex:
+  enabled: ${enable_dex}
+
+notifications:
+  enabled: ${enable_notifs}

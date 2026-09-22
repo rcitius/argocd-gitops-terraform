@@ -1,0 +1,6 @@
+# All values are supplied by the argocd module; these are placeholders only.
+name: bootstrap
+namespace: argocd
+repoUrl: ""
+revision: ""
+path: ""
